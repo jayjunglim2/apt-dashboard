@@ -5,46 +5,101 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>서남권 신혼부부 전세 지도</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css">
 <style>
+  /* ── 디자인 토큰 (DESIGN.md) ───────────────────────────── */
   :root{
-    --bg:#f7f7f5; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb;
-    --accent:#2563eb; --good:#15803d; --mid:#b45309; --none:#9ca3af;
+    /* Background */
+    --bg-normal:#f7f7f5; --bg-elevated:#ffffff; --bg-alternative:#eeeeec;
+    /* Label */
+    --label-normal:#1f2328; --label-neutral:#4b5563; --label-assistive:#6b7280;
+    --label-disable:#9ca3af; --label-on-primary:#ffffff;
+    /* Line */
+    --line-normal:#e5e7eb; --line-strong:#d1d5db;
+    /* Primary */
+    --primary-normal:#2563eb; --primary-strong:#1d4ed8; --primary-bg:#dbeafe;
+    /* Status (지도 색상 = 동 평균 보증금 ÷ 상한) */
+    --status-positive:#15803d; --status-cautionary:#b45309;
+    --status-negative:#b91c1c; --status-none:#9ca3af;
+    /* Fill */
+    --fill-subtle:rgba(31,35,40,0.04); --fill-normal:rgba(31,35,40,0.08);
+    /* Typography */
+    --font-sans:"Wanted Sans",system-ui,-apple-system,"Segoe UI",Roboto,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    /* Spacing (4px 스케일) */
+    --space-1:4px; --space-2:6px; --space-3:8px; --space-4:10px;
+    --space-5:14px; --space-6:16px; --space-8:24px;
+    /* Radius */
+    --radius-sm:6px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
+    /* Elevation */
+    --elevation-1:0 1px 2px rgba(0,0,0,0.06);
+    --elevation-2:0 4px 12px rgba(0,0,0,0.10);
+    --elevation-3:0 12px 32px rgba(0,0,0,0.16);
   }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg-normal:#16181c; --bg-elevated:#1f2328; --bg-alternative:#2a2f36;
+      --label-normal:#e8eaed; --label-neutral:#b0b6be; --label-assistive:#8a9199;
+      --label-disable:#5f666e;
+      --line-normal:#333941; --line-strong:#454c55;
+      --primary-normal:#4f8cff; --primary-strong:#6ba0ff; --primary-bg:#1e3050;
+      --status-positive:#4caf6a; --status-cautionary:#d9962f;
+      --fill-subtle:rgba(255,255,255,0.05); --fill-normal:rgba(255,255,255,0.09);
+    }
+  }
+
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
-  body{background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Malgun Gothic",sans-serif}
+  body{background:var(--bg-normal);color:var(--label-normal);
+    font:400 14px/1.5 var(--font-sans);word-break:keep-all}
   #app{display:flex;flex-direction:column;height:100%}
-  header{padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-  header h1{font-size:16px;margin:0}
-  header .sub{color:var(--muted);font-size:12px}
+  header{padding:var(--space-4) var(--space-5);background:var(--bg-elevated);
+    border-bottom:1px solid var(--line-normal);display:flex;align-items:baseline;
+    gap:var(--space-4);flex-wrap:wrap}
+  header h1{font-size:16px;font-weight:700;line-height:1.4;margin:0}
+  header .sub{color:var(--label-assistive);font-size:12px}
   #main{flex:1;display:flex;min-height:0}
-  #filters{width:280px;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
+  #filters{width:280px;background:var(--bg-elevated);
+    border-right:1px solid var(--line-normal);padding:var(--space-5);overflow:auto}
   #map{flex:1;min-width:0}
-  footer{background:var(--panel);border-top:1px solid var(--line);padding:8px 14px;font-size:12px;color:var(--muted)}
-  footer b{color:var(--ink)}
-  .grp{margin-bottom:16px}
-  .grp h3{margin:0 0 6px;font-size:12px;letter-spacing:.02em;color:var(--muted);text-transform:uppercase}
-  .row{display:flex;align-items:center;gap:6px;margin:4px 0}
-  .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;cursor:pointer;font-size:13px}
-  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
-  .val{font-variant-numeric:tabular-nums;font-weight:600}
-  input[type=range]{width:100%}
-  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:2px}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  footer{background:var(--bg-elevated);border-top:1px solid var(--line-normal);
+    padding:var(--space-3) var(--space-5);font-size:12px;line-height:1.5;color:var(--label-assistive)}
+  footer b{color:var(--label-normal);font-weight:600;font-variant-numeric:tabular-nums}
+  .grp{margin-bottom:var(--space-6)}
+  .grp h3{margin:0 0 var(--space-2);font-size:13px;font-weight:600;letter-spacing:.02em;
+    color:var(--label-assistive);text-transform:uppercase}
+  .row{display:flex;align-items:center;gap:var(--space-2);margin:var(--space-1) 0}
+  .chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+  .chip{border:1px solid var(--line-normal);background:var(--bg-elevated);
+    color:var(--label-normal);border-radius:var(--radius-pill);
+    padding:var(--space-1) var(--space-4);min-height:28px;display:inline-flex;
+    align-items:center;cursor:pointer;font-size:13px;line-height:1.45;
+    transition:background .12s,border-color .12s}
+  .chip:hover{background:var(--bg-alternative)}
+  .chip.on{background:var(--primary-normal);border-color:var(--primary-normal);color:var(--label-on-primary)}
+  .val{font-variant-numeric:tabular-nums;font-weight:600;color:var(--label-normal)}
+  input[type=range]{width:100%;accent-color:var(--primary-normal)}
+  .legend{display:flex;gap:var(--space-5);flex-wrap:wrap;font-size:12px;
+    color:var(--label-assistive);margin-top:2px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;
+    margin-right:var(--space-1);vertical-align:middle}
   .toggleFilters{display:none}
-  .leaflet-popup-content{font:13px/1.45 system-ui,"Malgun Gothic",sans-serif}
-  .pop h4{margin:0 0 4px;font-size:14px}
-  .pop .k{color:var(--muted)}
-  .pop table{border-collapse:collapse;margin-top:4px}
+  .leaflet-popup-content-wrapper{border-radius:var(--radius-lg);box-shadow:var(--elevation-2)}
+  .leaflet-popup-content{font:400 13px/1.45 var(--font-sans);color:var(--label-normal)}
+  .pop h4{margin:0 0 var(--space-1);font-size:14px;font-weight:600}
+  .pop .k{color:var(--label-assistive)}
+  .pop b{font-variant-numeric:tabular-nums}
+  .pop table{border-collapse:collapse;margin-top:var(--space-1)}
   .pop td{padding:1px 6px 1px 0}
-  .muted{color:var(--muted)}
+  .muted{color:var(--label-assistive)}
   @media (max-width:760px){
     #main{flex-direction:column}
-    #filters{width:auto;max-height:50vh;border-right:0;border-bottom:1px solid var(--line)}
+    #filters{width:auto;max-height:50vh;border-right:0;border-bottom:1px solid var(--line-normal)}
     #filters.collapsed{display:none}
     #map{min-height:60vh}
-    .toggleFilters{display:inline-block;margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer}
+    .toggleFilters{display:inline-flex;align-items:center;margin-left:auto;
+      border:1px solid var(--line-normal);background:var(--bg-elevated);
+      color:var(--label-normal);border-radius:var(--radius-md);
+      padding:var(--space-1) var(--space-4);cursor:pointer}
   }
 </style>
 </head>
@@ -99,9 +154,9 @@
       <div class="grp">
         <h3>지도 색상 = 동 평균 전세 보증금 / 상한</h3>
         <div class="legend">
-          <span><span class="dot" style="background:var(--good)"></span>여유 (~85%)</span>
-          <span><span class="dot" style="background:var(--mid)"></span>빠듯 (85–100%)</span>
-          <span><span class="dot" style="background:var(--none)"></span>결과 없음</span>
+          <span><span class="dot" style="background:var(--status-positive)"></span>여유 (~85%)</span>
+          <span><span class="dot" style="background:var(--status-cautionary)"></span>빠듯 (85–100%)</span>
+          <span><span class="dot" style="background:var(--status-none)"></span>결과 없음</span>
         </div>
       </div>
     </aside>
@@ -198,8 +253,8 @@ function aggregate(f){
 
 // ---------- render ----------
 function colorFor(ratio){
-  if(ratio==null) return 'var(--none)';
-  return ratio <= 0.85 ? 'var(--good)' : 'var(--mid)';
+  if(ratio==null) return 'var(--status-none)';
+  return ratio <= 0.85 ? 'var(--status-positive)' : 'var(--status-cautionary)';
 }
 function render(){
   writeURL();
