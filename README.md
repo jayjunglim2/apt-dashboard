@@ -3,6 +3,8 @@
 서울 서남권(구로·금천·영등포·관악) 아파트 **전세·반전세 실거래**를 지도에서 보고,
 보증금 3억 이하로 갈 만한 동네를 빠르게 추리는 단일 페이지 대시보드.
 
+**공개 주소: https://jayjunglim2.github.io/apt-dashboard/**
+
 - 기획 문서: [PRD.md](PRD.md)
 - 데이터: 국토교통부 아파트 실거래가 기반 `seoul-apt-latest.csv`
   (출처: https://github.com/ggplab/claude-playbook `01-hanbit-claude-guidebook/chap5/`)

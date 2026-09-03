@@ -153,7 +153,7 @@
 | 2 | **단일 `index.html` 프로토타입** | `index.html` (Leaflet+OSM, 필터·지도·팝업·요약·URL공유·반응형) | ✅ |
 | 3 | 동별 인프라 표기 JSON | `data/dong-info.json` (초안 — 작성자 검수 대기) | 🟡 |
 | 4 | 모바일 반응형·URL 공유 마무리 | index.html 내 구현 완료, 실기기 확인 필요 | 🟡 |
-| 5 | GitHub 저장소 생성 → GitHub Pages 활성화 → 공개 URL | | ⬜ |
+| 5 | GitHub 저장소 생성 → GitHub Pages 활성화 → 공개 URL | https://jayjunglim2.github.io/apt-dashboard/ | ✅ |
 
 > 로컬 실행은 `file://`로 안 되고 정적 서버 필요 → `scripts/serve.ps1` 제공. 자세한 건 `README.md`.
 
