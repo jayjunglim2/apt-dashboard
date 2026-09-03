@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>서남권 신혼부부 전세 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --good:#15803d; --mid:#b45309; --none:#9ca3af;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Malgun Gothic",sans-serif}
+  #app{display:flex;flex-direction:column;height:100%}
+  header{padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0}
+  header .sub{color:var(--muted);font-size:12px}
+  #main{flex:1;display:flex;min-height:0}
+  #filters{width:280px;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
+  #map{flex:1;min-width:0}
+  footer{background:var(--panel);border-top:1px solid var(--line);padding:8px 14px;font-size:12px;color:var(--muted)}
+  footer b{color:var(--ink)}
+  .grp{margin-bottom:16px}
+  .grp h3{margin:0 0 6px;font-size:12px;letter-spacing:.02em;color:var(--muted);text-transform:uppercase}
+  .row{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;cursor:pointer;font-size:13px}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .val{font-variant-numeric:tabular-nums;font-weight:600}
+  input[type=range]{width:100%}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:2px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .toggleFilters{display:none}
+  .leaflet-popup-content{font:13px/1.45 system-ui,"Malgun Gothic",sans-serif}
+  .pop h4{margin:0 0 4px;font-size:14px}
+  .pop .k{color:var(--muted)}
+  .pop table{border-collapse:collapse;margin-top:4px}
+  .pop td{padding:1px 6px 1px 0}
+  .muted{color:var(--muted)}
+  @media (max-width:760px){
+    #main{flex-direction:column}
+    #filters{width:auto;max-height:50vh;border-right:0;border-bottom:1px solid var(--line)}
+    #filters.collapsed{display:none}
+    #map{min-height:60vh}
+    .toggleFilters{display:inline-block;margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>서남권 신혼부부 전세 지도</h1>
+    <span class="sub">구로 · 금천 · 영등포 · 관악 &nbsp;|&nbsp; 전세 · 반전세 실거래</span>
+    <button class="toggleFilters" id="tgl">필터</button>
+  </header>
+  <div id="main">
+    <aside id="filters">
+      <div class="grp">
+        <h3>거래유형</h3>
+        <label class="row"><input type="checkbox" id="tJeonse" checked> 전세</label>
+        <label class="row"><input type="checkbox" id="tSemi" checked> 반전세 <span class="muted">(월세·보증금 1억+)</span></label>
+      </div>
+      <div class="grp">
+        <h3>보증금 상한 <span class="val" id="depVal"></span></h3>
+        <input type="range" id="dep" min="10000" max="40000" step="500" value="30000">
+      </div>
+      <div class="grp" id="rentGrp">
+        <h3>월세 상한 <span class="val" id="rentVal"></span></h3>
+        <input type="range" id="rent" min="0" max="200" step="10" value="100">
+      </div>
+      <div class="grp">
+        <h3>평형</h3>
+        <div class="chips" id="pyeong">
+          <span class="chip" data-k="s">소형 ~18평</span>
+          <span class="chip" data-k="m">중소형 18–26평</span>
+          <span class="chip" data-k="l">중형 26–31평</span>
+          <span class="chip on" data-k="all">전체</span>
+        </div>
+      </div>
+      <div class="grp">
+        <h3>자치구</h3>
+        <div class="chips" id="gu">
+          <span class="chip on" data-k="구로구">구로</span>
+          <span class="chip on" data-k="금천구">금천</span>
+          <span class="chip on" data-k="영등포구">영등포</span>
+          <span class="chip on" data-k="관악구">관악</span>
+        </div>
+      </div>
+      <div class="grp">
+        <h3>기간</h3>
+        <div class="chips" id="period">
+          <span class="chip" data-k="3">최근 3개월</span>
+          <span class="chip" data-k="6">최근 6개월</span>
+          <span class="chip on" data-k="12">전체 12개월</span>
+        </div>
+      </div>
+      <div class="grp">
+        <h3>지도 색상 = 동 평균 전세 보증금 / 상한</h3>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--good)"></span>여유 (~85%)</span>
+          <span><span class="dot" style="background:var(--mid)"></span>빠듯 (85–100%)</span>
+          <span><span class="dot" style="background:var(--none)"></span>결과 없음</span>
+        </div>
+      </div>
+    </aside>
+    <div id="map"></div>
+  </div>
+  <footer id="foot">불러오는 중…</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data/southwest-rent.js"></script>
+<script src="data/dong-info.js"></script>
+<script>
+const PYEONG = 3.305785;
+const fmtEok = v => (v/10000).toFixed(2).replace(/\.?0+$/,'') + '억';
+const fmtMan = v => v.toLocaleString('ko-KR') + '만';
+const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y); const m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+
+const state = {
+  jeonse:true, semi:true, dep:30000, rent:100,
+  pyeong:'all', gu:new Set(['구로구','금천구','영등포구','관악구']), period:12
+};
+
+let DATA, DONG, map, layer;
+
+// ---------- URL sync ----------
+function readURL(){
+  const q = new URLSearchParams(location.search);
+  if(q.has('dep')) state.dep = +q.get('dep');
+  if(q.has('rent')) state.rent = +q.get('rent');
+  if(q.has('pyeong')) state.pyeong = q.get('pyeong');
+  if(q.has('period')) state.period = +q.get('period');
+  if(q.has('type')){ const t=q.get('type').split(','); state.jeonse=t.includes('j'); state.semi=t.includes('s'); }
+  if(q.has('gu')) state.gu = new Set(q.get('gu').split(',').filter(Boolean));
+}
+function writeURL(){
+  const q = new URLSearchParams();
+  q.set('dep',state.dep); q.set('rent',state.rent);
+  q.set('pyeong',state.pyeong); q.set('period',state.period);
+  q.set('type',[state.jeonse?'j':null,state.semi?'s':null].filter(Boolean).join(','));
+  q.set('gu',[...state.gu].join(','));
+  history.replaceState(null,'','?'+q.toString());
+}
+
+// ---------- filtering ----------
+function pyeongOK(m2){
+  const p = m2/PYEONG;
+  if(state.pyeong==='all') return true;
+  if(state.pyeong==='s') return p < 18;
+  if(state.pyeong==='m') return p >= 18 && p < 26;
+  if(state.pyeong==='l') return p >= 26 && p < 31;
+  return true;
+}
+function filtered(){
+  const rows = DATA.rows;
+  const nYm = DATA.yms.length;
+  const minYmIdx = nYm - state.period; // period counts from the newest
+  const jIdx = DATA.types.indexOf('전세');
+  const out = [];
+  for(const r of rows){
+    const [gu,dong,cx,m2,fl,ty,dep,rentv,ym] = r;
+    if(!state.gu.has(gu)) continue;
+    if(ym < minYmIdx) continue;
+    const isJeonse = ty===jIdx;
+    if(isJeonse && !state.jeonse) continue;
+    if(!isJeonse && !state.semi) continue;
+    if(dep > state.dep) continue;
+    if(!isJeonse && rentv > state.rent) continue;
+    if(!pyeongOK(m2)) continue;
+    out.push(r);
+  }
+  return {rows:out, jIdx};
+}
+
+// ---------- aggregation ----------
+function aggregate(f){
+  const byDong = new Map();
+  for(const r of f.rows){
+    const key = r[0]+'/'+r[1];
+    if(!byDong.has(key)) byDong.set(key,{gu:r[0],dong:r[1],all:[],jeonse:[],semi:0,cx:new Map()});
+    const d = byDong.get(key);
+    d.all.push(r);
+    if(r[5]===f.jIdx) d.jeonse.push(r[6]); else d.semi++;
+    d.cx.set(r[2],(d.cx.get(r[2])||0)+1);
+  }
+  for(const d of byDong.values()){
+    const base = d.jeonse.length ? d.jeonse : d.all.map(r=>r[6]);
+    d.avg = mean(base); d.med = median(base);
+    d.count = d.all.length;
+    d.top = [...d.cx.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
+  }
+  return byDong;
+}
+
+// ---------- render ----------
+function colorFor(ratio){
+  if(ratio==null) return 'var(--none)';
+  return ratio <= 0.85 ? 'var(--good)' : 'var(--mid)';
+}
+function render(){
+  writeURL();
+  document.getElementById('depVal').textContent = fmtEok(state.dep) + ' 이하';
+  document.getElementById('rentVal').textContent = state.rent + '만원 이하';
+  document.getElementById('rentGrp').style.opacity = state.semi ? 1 : .4;
+
+  const f = filtered();
+  const agg = aggregate(f);
+  layer.clearLayers();
+
+  const cap = state.dep;
+  let allJeonse = [];
+  const dongStats = [];
+  for(const info of DONG.dong){
+    const key = info.gu+'/'+info.dong;
+    const d = agg.get(key);
+    const count = d ? d.count : 0;
+    const ratio = d && d.avg!=null ? d.avg/cap : null;
+    const radius = Math.min(30, 7 + Math.sqrt(count)*1.15);
+    const m = L.circleMarker([info.lat,info.lng],{
+      radius: count? radius : 6,
+      color:'#fff', weight:1.5,
+      fillColor: colorFor(ratio), fillOpacity: count? .62 : .3
+    }).addTo(layer);
+
+    let html = `<div class="pop"><h4>${info.dong} <span class="muted">${info.gu}</span></h4>`;
+    if(d){
+      html += `<div><span class="k">거래</span> ${d.count}건 `
+           +  `<span class="muted">(전세 ${d.jeonse.length} · 반전세 ${d.semi})</span></div>`
+           +  `<div><span class="k">전세 보증금</span> 평균 <b>${fmtEok(Math.round(d.avg))}</b>`
+           +  ` · 중위 ${fmtEok(Math.round(d.med))}</div>`;
+      if(d.top.length){
+        html += `<table>` + d.top.map(t=>`<tr><td>${t[0]}</td><td class="muted">${t[1]}건</td></tr>`).join('') + `</table>`;
+      }
+      dongStats.push({dong:info.dong, gu:info.gu, med:d.med, avg:d.avg, count:d.count});
+      allJeonse = allJeonse.concat(d.jeonse);
+    } else {
+      html += `<div class="muted">현재 필터 조건에 맞는 거래 없음</div>`;
+    }
+    html += `<div style="margin-top:6px"><span class="k">지하철</span> ${info.subway}</div>`
+         +  `<div class="muted">${info.note}</div></div>`;
+    m.bindPopup(html);
+    if(count) m.bindTooltip(`${info.dong} ${d? fmtEok(Math.round(d.avg)) : ''}`,{direction:'top'});
+  }
+
+  // summary
+  const cheapest = dongStats.filter(x=>x.count>=3).sort((a,b)=>a.med-b.med).slice(0,3);
+  const foot = document.getElementById('foot');
+  if(f.rows.length){
+    foot.innerHTML =
+      `필터 결과 <b>${f.rows.length.toLocaleString('ko-KR')}건</b> · `
+      + `<b>${dongStats.length}개 동</b> · `
+      + `전세 보증금 평균 <b>${allJeonse.length? fmtEok(Math.round(mean(allJeonse))):'-'}</b>`
+      + ` / 중위 <b>${allJeonse.length? fmtEok(Math.round(median(allJeonse))):'-'}</b>`
+      + (cheapest.length ? ` &nbsp;|&nbsp; 저렴한 동: ` + cheapest.map(c=>`${c.dong}(${fmtEok(Math.round(c.med))})`).join(' · ') : '')
+      + ` <br><span>${DATA.meta.ymRange[0]}~${DATA.meta.ymRange[1]} 국토부 실거래 · 현재 매물이 아닌 과거 거래 내역</span>`;
+  } else {
+    foot.innerHTML = `조건에 맞는 거래가 없습니다. 보증금 상한을 올리거나 평형·기간을 넓혀보세요.`;
+  }
+}
+
+// ---------- controls ----------
+function bind(){
+  const dep=document.getElementById('dep'), rent=document.getElementById('rent');
+  dep.value=state.dep; rent.value=state.rent;
+  dep.oninput=()=>{state.dep=+dep.value;render();};
+  rent.oninput=()=>{state.rent=+rent.value;render();};
+  document.getElementById('tJeonse').checked=state.jeonse;
+  document.getElementById('tSemi').checked=state.semi;
+  document.getElementById('tJeonse').onchange=e=>{state.jeonse=e.target.checked;render();};
+  document.getElementById('tSemi').onchange=e=>{state.semi=e.target.checked;render();};
+
+  document.querySelectorAll('#pyeong .chip').forEach(c=>{
+    c.classList.toggle('on', c.dataset.k===state.pyeong);
+    c.onclick=()=>{state.pyeong=c.dataset.k;
+      document.querySelectorAll('#pyeong .chip').forEach(x=>x.classList.toggle('on',x===c));
+      render();};
+  });
+  document.querySelectorAll('#gu .chip').forEach(c=>{
+    c.classList.toggle('on', state.gu.has(c.dataset.k));
+    c.onclick=()=>{ c.classList.toggle('on');
+      c.classList.contains('on') ? state.gu.add(c.dataset.k) : state.gu.delete(c.dataset.k);
+      render();};
+  });
+  document.querySelectorAll('#period .chip').forEach(c=>{
+    c.classList.toggle('on', +c.dataset.k===state.period);
+    c.onclick=()=>{state.period=+c.dataset.k;
+      document.querySelectorAll('#period .chip').forEach(x=>x.classList.toggle('on',x===c));
+      render();};
+  });
+  document.getElementById('tgl').onclick=()=>{
+    document.getElementById('filters').classList.toggle('collapsed');
+    if(map) setTimeout(()=>map.invalidateSize(),50);
+  };
+}
+
+// ---------- init ----------
+function start(d, info){
+  DATA=d; DONG=info;
+  readURL(); bind();
+  if(window.matchMedia('(max-width:760px)').matches){
+    document.getElementById('filters').classList.add('collapsed');
+  }
+  map = L.map('map',{scrollWheelZoom:true}).setView([37.497,126.895],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19, attribution:'&copy; OpenStreetMap 기여자'
+  }).addTo(map);
+  layer = L.layerGroup().addTo(map);
+  render();
+}
+
+if(window.SW_RENT && window.SW_DONG){
+  start(window.SW_RENT, window.SW_DONG);
+} else {
+  // 폴백: 예전 방식(서버에서 열었을 때)
+  Promise.all([
+    fetch('data/southwest-rent.json').then(r=>r.json()),
+    fetch('data/dong-info.json').then(r=>r.json())
+  ]).then(([d,info])=>start(d,info))
+    .catch(e=>{ document.getElementById('foot').textContent = '데이터를 불러오지 못했습니다: ' + e.message; });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# 원본 실거래 CSV는 용량이 커서 저장소에 넣지 않음 (약 27MB)
+scripts/seoul-apt-latest.csv
+
+# GitHub Pages 배포에는 .js 만 필요하지만, .json 도 참고용으로 커밋해 둠 (둘 다 유지)
